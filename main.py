@@ -1,5 +1,7 @@
-import coreferee, spacy
+import re
 
+import coreferee, spacy  # don't remove coreferee
+import lemminflect
 from helpers import html_replaced_with_spaces
 
 nlp = spacy.load('en_core_web_trf')
@@ -48,17 +50,78 @@ coref_chains.print()
 # len(token.text)
 
 character = 'Alice'
-
+found_character_tokens = []
 for chain in coref_chains:
     found_character = False
     for token_info in chain:
-
         token = doc[token_info.root_index]
         if token.text == character:
             found_character = True
             break
     if found_character:
-        for token_i in chain:
-            print(token.text, 222)
+        for token_info in chain:
+            token = doc[token_info.root_index]
+            found_character_tokens.append(token)
+
+# last elements dealt with first
+found_character_tokens.sort(key=lambda el: el.idx, reverse=True)
 
 
+def check_lookup_solution(text):
+    text = re.sub("(s)?he was", "they were", text)
+    text = re.sub( "She was", "They were", text)
+    text = re.sub( "He was", "They were", text)
+    text = re.sub( "(s)?he has", "they have", text)
+    text = re.sub( "She has", "They have", text)
+    text = re.sub( "He has", "They have", text)
+    text = re.sub( "He 's", "They're", text)
+    text = re.sub( "She's", "They're", text)
+    text = re.sub( "(s)?he's", "they're", text)
+    text = re.sub( "he has", "they have", text)
+    text = re.sub( "He has", "They have", text)
+    text = re.sub( "He is", "They are", text)
+    text = re.sub( "She is", "They are", text)
+    text = re.sub( "(s)?he is", "they are", text)
+    text = re.sub( "(she)([ ^]+)(s) ", "they $2", text)
+    text = re.sub( "(he)([ ^]+)(s) ", "they $2", text)
+    text = re.sub( "(She)([ ^]+)(s) ", "They $2", text)
+    text = re.sub( "(He)([ ^]+)(s) ", "They $2", text)
+    # Imperfect below - - but "her" as subject " possessive are tough
+    text = re.sub( "her ", "them ", text)
+    text = re.sub( " ing her", "ing them", text)
+    text = re.sub( "(s)?he", "they", text)
+    text = re.sub( "(s)?he", "they", text)
+    text = re.sub( "He", "They", text)
+    text = re.sub( "She", "They", text)
+    text = re.sub( "hers", "theirs", text)
+    text = re.sub( "Hers", "Theirs", text)
+    text = re.sub( "him", "them", text)
+    text = re.sub( "Him", "Them", text)
+    text = re.sub( "His", "Their", text)
+    text = re.sub( "his", "their", text)
+    text = re.sub( "her", "their", text)
+    text = re.sub( "Her", "Their", text)
+    text = re.sub( "himself", "themselves", text)
+    text = re.sub( "herself", "themselves", text)
+
+    return text
+
+
+def update_token(token):
+    prev_token = doc[token.i - 1]
+    following_token = doc[token.i + 1]
+    # print(prev_token, token, following_token, 222, following_token.lemma_, following_token.tag_)
+    to_change = ' '.join([prev_token.text, token.text, following_token.text])
+    changed = check_lookup_solution(to_change)
+    print(to_change, 333, changed,33)
+    if to_change == changed:
+        if following_token.tag_[0:2] == 'VB':
+            # figure out later
+            # print(following_token.tag_, 33)
+            following_token._.inflect('NNS')
+
+
+for token in found_character_tokens:
+    if token.text == character:
+        continue
+    update_token(token)
