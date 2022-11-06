@@ -1,11 +1,13 @@
 import re
-
 import coreferee, spacy  # don't remove coreferee
 import lemminflect
+from spacy import Vocab
+
 from helpers import html_replaced_with_spaces
 
 nlp = spacy.load('en_core_web_trf')
 nlp.add_pipe('coreferee')
+
 
 # https://github.com/msg-systems/coreferee/issues/19#issuecomment-911522340
 
@@ -30,7 +32,7 @@ Alice was beginning to get very tired of sitting by her sister on the bank, and
 of having nothing to do: once or twice she had peeped into the book her sister
 was reading, but it had no pictures or conversations in it, “and what is
 the use of a book,” thought Alice “without pictures or
-conversations?”
+conversations? She was running very fast”
 </p>"""
 
 text = html_replaced_with_spaces(html)
@@ -66,62 +68,38 @@ for chain in coref_chains:
 # last elements dealt with first
 found_character_tokens.sort(key=lambda el: el.idx, reverse=True)
 
-
-def check_lookup_solution(text):
-    text = re.sub("(s)?he was", "they were", text)
-    text = re.sub( "She was", "They were", text)
-    text = re.sub( "He was", "They were", text)
-    text = re.sub( "(s)?he has", "they have", text)
-    text = re.sub( "She has", "They have", text)
-    text = re.sub( "He has", "They have", text)
-    text = re.sub( "He 's", "They're", text)
-    text = re.sub( "She's", "They're", text)
-    text = re.sub( "(s)?he's", "they're", text)
-    text = re.sub( "he has", "they have", text)
-    text = re.sub( "He has", "They have", text)
-    text = re.sub( "He is", "They are", text)
-    text = re.sub( "She is", "They are", text)
-    text = re.sub( "(s)?he is", "they are", text)
-    text = re.sub( "(she)([ ^]+)(s) ", "they $2", text)
-    text = re.sub( "(he)([ ^]+)(s) ", "they $2", text)
-    text = re.sub( "(She)([ ^]+)(s) ", "They $2", text)
-    text = re.sub( "(He)([ ^]+)(s) ", "They $2", text)
-    # Imperfect below - - but "her" as subject " possessive are tough
-    text = re.sub( "her ", "them ", text)
-    text = re.sub( " ing her", "ing them", text)
-    text = re.sub( "(s)?he", "they", text)
-    text = re.sub( "(s)?he", "they", text)
-    text = re.sub( "He", "They", text)
-    text = re.sub( "She", "They", text)
-    text = re.sub( "hers", "theirs", text)
-    text = re.sub( "Hers", "Theirs", text)
-    text = re.sub( "him", "them", text)
-    text = re.sub( "Him", "Them", text)
-    text = re.sub( "His", "Their", text)
-    text = re.sub( "his", "their", text)
-    text = re.sub( "her", "their", text)
-    text = re.sub( "Her", "Their", text)
-    text = re.sub( "himself", "themselves", text)
-    text = re.sub( "herself", "themselves", text)
-
-    return text
-
+def update_word(token, to):
+    global html
+    html = html[0: token.idx] + to + html[token.idx + len(token.text):]
 
 def update_token(token):
     prev_token = doc[token.i - 1]
     following_token = doc[token.i + 1]
-    # print(prev_token, token, following_token, 222, following_token.lemma_, following_token.tag_)
+    print(list(token.children),3333)
+    print(prev_token, token, following_token, 222, following_token.lemma_, following_token.tag_)
     to_change = ' '.join([prev_token.text, token.text, following_token.text])
-    changed = check_lookup_solution(to_change)
-    print(to_change, 333, changed,33)
-    if to_change == changed:
-        if following_token.tag_[0:2] == 'VB':
-            # figure out later
-            # print(following_token.tag_, 33)
-            following_token._.inflect('NNS')
 
+    if token.tag_ == 'PRP':  # personal pronoun
+        update_word(token, 'they')
+    elif token.tag_ == 'PRP$':  # possessive pronoun
+        update_word(token, 'their')
+
+    if following_token.tag_[0:2] == 'VB':
+        # figure out later
+        # print(following_token.tag_, 33)
+        a = following_token._.inflect('NNS')
+        print('is vb', following_token.tag_, token.getInflection(following_token.text, ))
+
+
+    # token.morph: Case=Nom|Gender=Fem|Number=Sing|Person=3|PronType=Prs
+    print(token.tag_, token.text, 222, token.morph)
+    print(token.morph, token._.inflect(following_token.tag_, ))
+    # tag = Penn Treebank tag,
 
 for token in found_character_tokens:
     if token.text == character:
         continue
     update_token(token)
+
+# print(html)
+
